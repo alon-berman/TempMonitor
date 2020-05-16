@@ -1,0 +1,19 @@
+{
+  "business_details": {
+    "business_name": "Yogo Cinema City Rishon",
+    "contact_name": "Yogo Cinema City Rishon",
+    "contact_email": "Yogo Cinema City Rishon",
+    "contact_phone": "Yogo Cinema City Rishon"
+  },
+  "cloud_server":"Yogo Cinema City Rishon",
+  "cloud_port": "yogo_cinema_city_rishon",
+  "app_id": "soldier.cloudmqtt.com",
+  "access_key": 17125,
+  "temperature_thresh": "lnacmzld",
+  "dev_id": "ad9LXazYZ4Za",
+  "min_battery_volt_alert": [-4,6],
+  "log_level": "INFO",
+  "debug_mode": 1,
+  "temp_stabilization_thresh": 1,
+  "time_between_alerts_sec": 3600
+}

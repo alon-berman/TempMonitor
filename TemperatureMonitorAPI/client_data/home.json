@@ -1,0 +1,21 @@
+[
+  {
+    "business_details": {
+      "business_name": "Home",
+      "contact_name": "Alon",
+      "contact_email": "alon@berman.ltd",
+      "contact_phone": "+972508953731"
+    },
+    "cloud_server":"eu.thethings.network",
+    "cloud_port":1883,
+    "app_id": "temp_monitor_tester",
+    "access_key": "ttn-account-v2.bznvspfhnrWpP1AkkHKw5bEsTJ-blN9Ywkx5IJQzOXY",
+    "temperature_thresh": [3, 5],
+    "dev_id": "lht65279777",
+    "min_battery_volt_alert": 0.85,
+    "log_level": "INFO",
+    "debug_mode": 1,
+    "temp_stabilization_thresh": 1,
+    "time_between_alerts_sec": 3600
+  }
+]

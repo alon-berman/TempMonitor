@@ -1,0 +1,35 @@
+========== BEFORE RUNNING ==========
+Machine must have mongod installed and running before exectuing script!
+
+========== INSTALLING ENVIRONMENT & RUNNING ==========
+on Windows:
+$python -m venv venv
+$ cd ./venv/Scripts
+$ activate.bat
+$ cd ../../
+$ pip install -r requirements.txt
+$ python app.py
+
+on Unix
+$ sudo apt-get virtualenv
+$ virtualenv venv
+$ cd PATH_TO_PROJECT_DIR
+$ source venv/bin/activate
+$ pip install -r requirements.txt
+$ python app.py 
+
+========== GETTING DATA ==========
+After the initiation of application, you'll be redirected to
+http://localhost:5000
+navigate to the url. a GUI will then open, allowing you to choose from two options:
+
+1. Get All Plugins - /plugin/all
+	Simply press 'Try it Out', then 'Execute'
+2. Get Plugin by ID - /plugin/id
+	press 'Try it Out', then fill the desired ID to find -
+	for example:SOLARIS8_127721.NASL
+	Then press 'Execute'
+
+========== SIDE NOTES ==========
+Some fields are configurable via ness_api_config.ini file in the folder,
+such as nessus.json path, save location and name etc.

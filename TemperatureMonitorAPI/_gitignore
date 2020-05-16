@@ -1,0 +1,9 @@
+*.log
+*.pyc
+*.orig
+*.zip
+.project
+.pydevproject
+.settings
+venv/
+prerequisites/

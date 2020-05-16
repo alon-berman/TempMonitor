@@ -1,0 +1,15 @@
+{
+  "business_name":"Yogo Cinema City Rishon",
+  "id": "yogo_cinema_city_rishon",
+  "app_id": "temp_monitor_tester",
+  "access_key":"ttn-account-v2.wLeNaIB0q8XjhPME9mfWPvHdWwcPoYsr8ntjDY-5d3M",
+  "mqtt_address":"eu.thethings.network",
+  "mqtt_port": 1883,
+  "cloud_user": "lnacmzld",
+  "cloud_password": "ad9LXazYZ4Za",
+  "temperature": [-4,6],
+  "log_level": "INFO",
+  "debug_mode": 1,
+  "stabilization_temp": 1,
+  "topic_out":"/temperature/out"
+}

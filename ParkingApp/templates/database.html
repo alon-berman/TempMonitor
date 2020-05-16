@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container-contact100">
+    <div class="wrap-contact100">
+        <form class="contact100-form validate-form" method="POST" action="/edit_user">
+            <span class="contact100-form-title">
+                Database Edit Page
+            </span>
+
+            <table align="center" border="1">
+                <thead>
+                <td bgcolor=#00ADEE>Name</td>
+                <td hidden bgcolor=#00ADEE>Mail Address</td>
+                <td bgcolor=#00ADEE>Phone</td>
+                <td bgcolor=#00ADEE>Car Plate</td>
+                <td bgcolor=#00ADEE>is Admin</td>
+                <td bgcolor=#00ADEE>Action</td>
+                </thead>
+                {% for row in rows %}
+                {% if row.id|string != user_id|string %}
+                <tr>
+                    <!--                        <td>{{row['id']}}</td>-->
+                    <td>{{row['username']}}</td>
+                    <td hidden>{{row['mail_address']}}</td>
+                    <td> {{ row['phone_number']}}</td>
+                    <td>{{row['car_number']}}</td>
+                    {% if row.qualification|string == "1" %}
+                    <td><input type="checkbox" class="input100 is-primary"
+                               value="1"
+                               name="is_admin"  checked disabled></td>
+                    {% else %}
+                    <td><input type="checkbox" class="input100 is-primary"
+                               value="0"
+                               name="is_admin" disabled></td>
+                    {% endif %}
+                    <td>
+                        <button class="btn main-btn" type="submit" name="Edit" value={{row['id']}}>Edit</button>
+                    </td>
+                </tr>
+                {% else %}
+                Edit {{row.username}}'s Data
+                <tr>
+                    <td><input type="text" class="input100 is-primary" value="{{row['username']}}" name="username"
+                               id="username" required></td>
+                    <!--                    <td><input hidden type="email" class="input100 is-primary" value="{{row['mail_address']}}"-->
+                    <!--                               name="mail_address" id="mail_address" required></td>-->
+                    <td><input type="tel" class="input100 is-primary" value="{{row['phone_number']}}"
+                               name="phone_number" id="phone_number" required></td>
+                    <td><input type="number" class="input100 is-primary" value="{{row['car_number']}}"
+                               name="car_number" id="car_number" required></td>
+                    {% if row.qualification|string == "1" %}
+                    <td><input type="checkbox" class="input100 is-primary" value="1"
+                               name="is_admin" checked ></td>
+                    {% else %}
+                    <td><input type="checkbox" class="input100 is-primary" value="1"
+                               name="is_admin" ></td>
+                    {% endif %}
+                    <td>
+                        <button class="btn main-btn" type="submit" name="Save" value={{row['id']}}>Save Changes
+                        </button>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </table>
+
+
+            <a href="/">Home Page</a>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
