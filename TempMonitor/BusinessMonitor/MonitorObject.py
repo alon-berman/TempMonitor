@@ -3,103 +3,82 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-import logging
 from time import sleep, time
-import requests
 import sys
+
+from CloudCommunication.CloudOperation import assign_cloud_object
+from DataHandlers.DataFilter import json_filter
 
 _BUFF_SIZE = 10
 _MIN_BAT_VOLTAGE = 0.85
 
 
 def load_client_details(client_details_json_path):
-    with open('../client_data/home.json') as f:
+    with open(client_details_json_path) as f:
         return json.load(f)
 
 
 class BusinessMonitor:
-    def __init__(self, client_details_json_path=None):
-        self.client_data = load_client_details(client_details_json_path)[0]
-        self.client_data = self.client_data
-        self.business_details = self.client_data['business_details']
-        self.dev_id = self.client_data['dev_id']
+    """
+    Each client of the service has this process running on server monitoring the temperature.
 
-        # self.cloud_server = self.client_data['cloud_server']
-        # self.cloud_port = self.client_data['cloud_port']
-        # self.app_id = self.client_data['app_id']
-        # self.access_key = self.client_data['access_key']
-
-        self.temperature_thresh = self.client_data['temperature_thresh']  # min_temp, max_temp
-        self.temp_stabilization_thresh = self.client_data['temp_stabilization_thresh']
-
-        self.temperature_history_buffer = []
-        self.prev_temp = 0
-
-        self.time_between_alerts = self.client_data['time_between_alerts_sec']
+    """
+    def __init__(self, device_ids, cloud_type, business_details, log_level, debug_mode):
+        # Init parameters
         self.last_email_sent_seconds = time()
         self.should_send_email = False
+        self.temperature_history_buffer = []
+        self.prev_temp = None
+        self.device_list = []
 
-        self.min_battery_volt_alert = self.client_data['min_battery_volt_alert']
-        self.log_level = self.client_data['log_level']
-        self.debug_mode = self.client_data['debug_mode']
+        # Client Data
+        self.business_details = business_details
+        self.device_ids = device_ids
 
-        # self.mqtt.client = self.connect_mqtt()
-        # self.topic = f"{self.app_id}/devices/{self.dev_id}/up"
-        self.init()
-        self.listen()
+        # Cloud Interface
+        self.cloud_handler = assign_cloud_object(cloud_type)
 
-    # Define event callbacks
-    def on_disconnect(self, userdata, rc=0):
-        logging.debug("Disconnected result code " + str(rc))
-        self.mqtt_client.loop_stop()
+        # Client-configured Parameters
+        # self.temperature_thresh = temperature_thresh  # min_temp, max_temp
+        # self.temp_stabilization_thresh = temp_stabilization_thresh
+        # self.min_battery_volt_alert = min_battery_volt_alert
+        # self.time_between_alerts = time_between_alerts_sec
 
-    def on_connect(self, client, userdata, flags, rc):
-        print("rc: " + str(rc))
+        # Advanced
+        self.log_level = log_level
+        self.debug_mode = debug_mode
 
-    def on_message(self, client, obj, msg):
-        # Assign data to variables
-        payload_as_dict = json.loads(msg.payload.decode('ascii'))
-        temperature_c = payload_as_dict['payload_fields']['TempC_DS']
-        battery_voltage = payload_as_dict['payload_fields']['BatV']
+        self.prepare_run()
+        self.monitor()
 
-        self.check_temperature(temperature_c)
-        self.is_battery_low(battery_voltage)
-        print(f'Temperature is: {temperature_c} Celsius')
+    def prepare_run(self):
+        pass
 
-    def init(self):
-        self.mqtt_client.subscribe(self.topic, )
-
-    def listen(self):
+    def monitor(self):
         while True:
-            self.mqtt_client.loop()
-            sleep(3)
+            for device_id in self.device_ids:
+                self.curr_temp_c_dict[device_id] = json_filter(self.cloud_handler.get_raw_data(),
+                                                               "IMEI", device_id)[0]
+                self.check_temperature()
 
-    def send_note(self):
-        report = dict()
-        report['measured_temp'] = self.prev_temp
-        try:
-            requests.post('https://maker.ifttt.com/trigger/notify/with/key/zjH2Qk3YYziQ_hSqCYnVl', data=report)
-        except:
-            logging.warning('could not send notification')
+    def check_temperature(self):
+        # if abs(self. - self.temperature_history_buffer[-1]) > self.temp_stabilization_thresh:
+        #     print('Waiting for temp to stabilize...')
+        #     sys.stdout.flush()
 
-    def check_temperature(self, curr_temp_c):
-        if abs(curr_temp_c - self.temperature_history_buffer[-1]) > self.temp_stabilization_thresh:
-            print('Waiting for temp to stabilize...')
+        # else:
+        if self.temperature_thresh[0] <= self.curr_temp_c_dict <= self.temperature_thresh[1]:
+            print('business as usual')
             sys.stdout.flush()
 
         else:
-            if self.temperature_thresh[0] <= curr_temp_c <= self.temperature_thresh[1]:
-                print('business as usual')
-                sys.stdout.flush()
-
-            else:
-                if self.should_send_email:
-                    self.send_mail()
-                print('Temperature is not within the thresholds!')
-        self.prev_temp = curr_temp_c
+            if self.should_send_email:
+                self.send_mail()
+            print('Temperature is not within the thresholds!')
+        self.prev_temp = self.curr_temp_c_dict
         if self.temperature_history_buffer == _BUFF_SIZE:
             self.temperature_history_buffer.pop(0)
-        self.temperature_history_buffer.append(curr_temp_c)
+        self.temperature_history_buffer.append(self.curr_temp_c_dict)
 
     def is_battery_low(self, battery_voltage):
         if battery_voltage < self.min_battery_volt_alert:
@@ -158,5 +137,5 @@ if __name__ == '__main__':
     #                           "ttn-account-v2.bznvspfhnrWpP1AkkHKw5bEsTJ-blN9Ywkx5IJQzOXY",
     #                           [-4, 50], dev_id="lht65279777", temp_stabilization_thresh=3,
     #                           debug_mode=True, min_battery_volt_alert=0.85)
-    monitor = BusinessMonitor('client_data/home.json')
+    monitor = BusinessMonitor('ClientData/home.json')
     print('done')
