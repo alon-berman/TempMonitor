@@ -11,6 +11,7 @@ def json_filter(raw_data, field: str, val=None):
     """
     if type(raw_data) is str:
         raw_data = json.loads(raw_data)
+
     if val is None:
         return raw_data[field]
     else:

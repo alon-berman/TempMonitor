@@ -3,16 +3,32 @@
     "business_details": {
       "business_name": "Home",
       "contact_name": "Alon",
-      "contact_email": "alon@berman.ltd",
+      "contact_email": "saliniv0@gmail.com",
       "contact_phone": "+972508953731"
     },
-    "cloud_type":"tzone",
-    "device_id": "641984907900006",
-    "temperature_thresh": [3, 5],
-    "min_battery_volt_alert": 0.85,
-    "log_level": "INFO",
-    "debug_mode": 1,
-    "temp_stabilization_thresh": 1,
-    "time_between_alerts_sec": 3600
+    "devices":[
+       {
+        "device_id": "06180703",
+        "tag": "Main Fridge",
+        "cloud_config":{
+          "type": "tzone"
+        },
+        "measurement_types": {
+          "temperature": {
+            "unit": "celsius",
+            "threshold": [3,5],
+            "stabilization_threshold_c": 3,
+            "time_interval_sec": 5
+          },
+          "humidity": {
+
+          }
+        },
+      "min_battery_volt_alert": 0.85,
+      "time_between_alerts_sec": 3600,
+         "debug_mode": 1
+       }
+    ],
+    "business_debug_mode": 1
   }
 ]

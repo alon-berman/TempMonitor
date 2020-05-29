@@ -1,14 +1,13 @@
 from CloudCommunication.TzoneInterface import TzoneHandler
 
 
-def assign_cloud_object(cloud_type: str, *args):
+def assign_cloud_object(cloud_data, logger, **kwargs):
     """
     this function assign the proper cloud object depend on cloud type provided. e.g, tzone.
-    :param cloud_type: string
-    :param args: object input args.
+    :param cloud_data:
+    :param logger:
+    :param kwargs: cloud configuration (address, keys, et cetera).
     :return: cloud object
     """
-    if cloud_type == "tzone":
-        return TzoneHandler(*args)
-
-
+    if cloud_data["type"] == "tzone":
+        return TzoneHandler(logger)

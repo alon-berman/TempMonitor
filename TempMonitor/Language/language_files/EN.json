@@ -1,0 +1,6 @@
+{
+  "temperature": {
+    "title": "Temperature on fridge Exceeds the threshold!",
+    "current_temperature": "The current temperature is:"
+  }
+}
