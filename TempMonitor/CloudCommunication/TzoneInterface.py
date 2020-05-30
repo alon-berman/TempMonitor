@@ -67,7 +67,10 @@ class TzoneHandler(AbsCloudObj):
     def data_formatter(self, device_id, field, separator):
         data = self.get_device_data(device_id)
         try:
-            return float(data[0][field].split(separator)[0])
+            if data:
+                return float(data[0][field].split(separator)[0])
+            else:
+                return None
         except TypeError:
             return None
 
