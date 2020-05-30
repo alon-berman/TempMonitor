@@ -11,12 +11,12 @@ def loop():
     business_processes = []
     running_clients = []
     while True:
-        clients_as_json = os.listdir('../ClientData')
+        clients_as_json = os.listdir('./ClientData')
         for client in clients_as_json:
             if client in running_clients:
                 break
             else:
-                client_file_path = "..\\ClientData\\{}".format(client)
+                client_file_path = ".\\ClientData\\{}".format(client)
                 try:
                     if 'test_' not in client:
                         with open(client_file_path) as client_data:
@@ -33,5 +33,5 @@ def loop():
 
 
 if __name__ == '__main__':
-    print("Montior Starts ...")
+    print("Starting Monitor App...")
     loop()

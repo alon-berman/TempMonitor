@@ -30,8 +30,9 @@ class TemperatureHandler(AbsMeasurementHandler):
         self._loop()
 
     def check_measurement(self):
+        self.logger.debug(f'device {self.device_id} buffer: {self.measurement_buffer} \n')
         if self.is_temp_stabilized():
-            current_temperature = self.get_data_func()
+            current_temperature = self.get_data_func(self.device_id)
             self._update_buffer(current_temperature)
             if current_temperature not in np.arange(self.threshold[0], self.threshold[1]):
                 raise TemperatureExceededError
@@ -60,11 +61,16 @@ class TemperatureHandler(AbsMeasurementHandler):
         return True
 
     def _update_buffer(self, curr_temp):
-        if self.measurement_buffer == _BUFF_SIZE:
+        self.logger.debug('Waiting for temp to stabilize...')
+        if len(self.measurement_buffer) == _BUFF_SIZE:
             self.measurement_buffer.pop(0)
         self.measurement_buffer.append(curr_temp)
 
     def _loop(self):
         while True:
             sleep(self.time_interval_sec)
-            self.check_measurement()
+            self._update_buffer(self.get_data_func(self.device_id))
+            try:
+                self.check_measurement()
+            except TemperatureExceededError:
+                self.logger.debug('Temperature Exceeded!')

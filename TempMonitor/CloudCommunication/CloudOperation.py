@@ -1,3 +1,4 @@
+
 from CloudCommunication.TzoneInterface import TzoneHandler
 
 
@@ -10,4 +11,6 @@ def assign_cloud_object(cloud_data, logger, **kwargs):
     :return: cloud object
     """
     if cloud_data["type"] == "tzone":
-        return TzoneHandler(logger)
+        return TzoneHandler(logger, './CloudCommunication/Config/tzone_cloud.ini', **kwargs)
+
+

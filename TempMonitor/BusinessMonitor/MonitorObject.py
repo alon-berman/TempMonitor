@@ -46,22 +46,26 @@ class BusinessMonitor:
 
         self.prepare_run()
         self.monitor()
-        self.logger.debug('created Businsess handler for device {}'.format(business_details["business_name"]))
+        self.logger.debug('created Businsess handler for {}'.format(business_details["business_name"]))
 
     def prepare_run(self):
         pass
 
     def monitor(self):
         for device in self.devices:
-            process = multiprocessing.Process(name=device["device_id"],
-                                              target=DeviceMonitor,
-                                              args=(self.business_details["business_name"],
-                                                    self.business_details["contact_name"],
-                                                    self.business_details["contact_email"]),
-                                              kwargs=device)
-            self.logger.debug(f'initiating DeviceMonitor process for {device["device_id"]}')
-            process.start()
-            self.device_processes_list.append(process)
+            if device["monitor_enabled"]:
+                process = multiprocessing.Process(name=device["device_id"],
+                                                  target=DeviceMonitor,
+                                                  args=(self.business_details["business_name"],
+                                                        self.business_details["contact_name"],
+                                                        self.business_details["contact_email"]),
+                                                  kwargs=device)
+                self.logger.debug(f'initiating DeviceMonitor process for {device["device_id"]}')
+                process.start()
+                self.device_processes_list.append(process)
+            else:
+                self.logger.debug(f'Skipping Monitoring of {device["device_id"]}')
+
 
 
 if __name__ == '__main__':

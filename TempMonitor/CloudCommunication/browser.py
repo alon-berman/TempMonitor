@@ -1,3 +1,6 @@
+import logging
+
+from selenium.common.exceptions import InvalidSessionIdException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
@@ -8,11 +11,12 @@ _CHROME_OPTIONS = \
 
 class Browser:
     """
-    A Singleton function representing a Chrome browser object.
+    A Singleton function representing a ChromeDriver browser object.
     """
 
     class __Browser:
         def __init__(self, *args):
+            self.logger = logging.getLogger()
             self.options = Options()
             self.prepare_options()
             self.obj = Chrome(options=self.options)
@@ -20,6 +24,7 @@ class Browser:
         def prepare_options(self):
             for option in _CHROME_OPTIONS:
                 self.options.add_argument(option)
+            self.options.page_load_strategy = 'eager'
 
     instance = None
 
@@ -30,10 +35,14 @@ class Browser:
             Browser.instance.val = args
 
     def __getattr__(self, name):
-        return getattr(self.instance.obj, name)
+        return getattr(self.instance, name)
 
     def __enter__(self):
         return self.obj
 
     def __exit__(self, exc_type, xc_val, exc_tb):
-        self.obj.close()
+        try:
+            pass
+            # self.obj.close()
+        except InvalidSessionIdException as e:
+            self.logger.debug(e.__str__())

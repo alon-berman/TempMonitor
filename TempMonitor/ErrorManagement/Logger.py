@@ -52,6 +52,7 @@ def configure_logger(
 
     logger = logging.getLogger(logger_name)
     if get_existing:
+        logger.setLevel(logging_level)
         return
     formatter = logging.Formatter(message_format)
 

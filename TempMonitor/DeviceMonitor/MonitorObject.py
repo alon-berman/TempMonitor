@@ -1,6 +1,6 @@
 import logging
 import threading
-from time import time
+from time import time, sleep
 
 import numpy as np
 
@@ -15,8 +15,9 @@ class DeviceMonitor:
     def __init__(self, logger_name: str, owner_name: str, owner_email: str, device_id: str,
                  tag: str, cloud_config: dict, measurement_types: dict,
                  min_battery_volt_alert: float,  time_between_alerts_sec: int, debug_mode: int,
-                 ):
-
+                 monitor_enabled=1):
+        if not monitor_enabled:
+            quit()
         # System-configured Parameters
         self.device_owner_name = owner_name
         self.device_owner_email = owner_email
@@ -25,14 +26,11 @@ class DeviceMonitor:
         self.device_id = device_id
         if debug_mode:
             logging_level = logging.DEBUG
-            print_output = True
         else:
             logging_level = logging.WARNING
-            print_output = False
         self.logger = configure_logger(logger_name=logger_name + '.' + device_id,
                                        logging_level=logging_level)
-                                       # get_existing=True,
-                                       # print_logging=print_output)
+
         # Client-configured Parameters
         self.tag = tag
         self.time_between_alerts_sec = time_between_alerts_sec
@@ -56,7 +54,7 @@ class DeviceMonitor:
                 proc = threading.Thread(target=TemperatureHandler,
                                         kwargs=({
                                             "handler_cfg": self.measurement_types[meas_type],
-                                            "get_data": self.cloud_handler.get_device_data,
+                                            "get_data": self.cloud_handler.get_device_temperature,
                                             "device_id": self.device_id,
                                             "logger": self.logger
                                         }))
@@ -68,6 +66,7 @@ class DeviceMonitor:
     def monitor(self):
         while True:
             try:
+                sleep(1*60)
                 if self.is_battery_low():
                     self.logger.warning('DEVICE BATTERY VOLTAGE LOW! \n'
                                         'Device ID : {}'.format(self.device_id),
@@ -82,6 +81,7 @@ class DeviceMonitor:
 
     def is_battery_low(self):
         battery_voltage = self.get_current_battery_voltage()
+        self.logger.debug(f'Measured Voltage {battery_voltage} V')
         if battery_voltage is not None\
                 and (battery_voltage < self.min_battery_volt_alert):
             if self.should_send_mail:

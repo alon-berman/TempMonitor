@@ -8,8 +8,31 @@
     },
     "devices":[
        {
-        "device_id": "06180703",
+        "monitor_enabled": 1,
+        "device_id": "82190116",
         "tag": "Main Fridge",
+        "cloud_config":{
+          "type": "tzone"
+        },
+        "measurement_types": {
+          "temperature": {
+            "unit": "celsius",
+            "threshold": [29,31],
+            "stabilization_threshold_c": 3,
+            "time_interval_sec": 5
+          },
+          "humidity": {
+
+          }
+        },
+      "min_battery_volt_alert": 0.85,
+      "time_between_alerts_sec": 3600,
+         "debug_mode": 1
+       },
+       {
+       "monitor_enabled": 0,
+        "device_id": "72192031",
+        "tag": "Second Fridge",
         "cloud_config":{
           "type": "tzone"
         },
@@ -26,7 +49,7 @@
         },
       "min_battery_volt_alert": 0.85,
       "time_between_alerts_sec": 3600,
-         "debug_mode": 1
+      "debug_mode": 0
        }
     ],
     "business_debug_mode": 1

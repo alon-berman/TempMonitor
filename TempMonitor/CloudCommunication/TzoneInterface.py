@@ -1,54 +1,48 @@
 import json
-from time import sleep
-from bs4 import BeautifulSoup
+import threading
+from time import time, sleep
+import datetime
 
+from CloudCommunication.CloudUtilities import get_request
+from CloudCommunication.Config.operation.ini import read_ini_cfg
 from CloudCommunication.AbstractCloudObject import AbsCloudObj
-from CloudCommunication.browser import Browser
 from DataHandlers.DataFilter import json_filter
 from ErrorManagement.CloudExceptions import CloudNoDataException
 from ErrorManagement.Logger import configure_logger
 
-CLOUD_URL = r'http://t-open.tzonedigital.cn/'
-WEB_LOAD_TIME = 5
-MAX_RETRIES = 10
-
 
 class TzoneHandler(AbsCloudObj):
-    def __init__(self, logger):
+    def __init__(self, business_logger, ini_config_path, **kwargs):
         super().__init__()
-        self.logger = logger
+        self.logger = business_logger
         self.num_attempts = 0
-        self.browser = Browser()
+        self.cfg = read_ini_cfg(ini_config_path)
+        self.data = (None, None)  # (time of data acquisition, cloud data)
+        self.data_update_thread = threading.Thread(target=self.get_raw_data_loop)
+        self.prepare_run()
 
-    def get_raw_data(self):
-        try:
-            with self.browser as browser:
-                browser.get(CLOUD_URL)
-                sleep(WEB_LOAD_TIME)
-                html = browser.page_source
+    def prepare_run(self):
+        self.update_raw_data()
+        self.data_update_thread.start()
 
+    def get_raw_data_loop(self):
+        while True:
+            sleep(eval(self.cfg['data']['data_refresh_time_sec']))
+            try:
+                self.update_raw_data()
 
-            page_soup = BeautifulSoup(html, 'html.parser')
-            sleep(2.01)  # Suppress Request frequency too fast (less than 2 seconds)
-            raw_cloud_data = page_soup.findAll("table", {"id": "tab1"})[0].attrs['jsondata']
-            self.logger.debug('raw cloud data' + raw_cloud_data)
-            return json.loads(raw_cloud_data)
-
-        except KeyError:
-            if self.num_attempts > MAX_RETRIES:
-                self.logger.debug('Failed to get raw data from Tzone Cloud, attempt {}/{}'
-                                  .format(self.num_attempts, MAX_RETRIES))
-                self.num_attempts = 0
-                raise CloudNoDataException
-            else:
-                self.num_attempts += 1
-                self.get_raw_data()
+            except KeyError:
+                if self.num_attempts > int(self.cfg['connectivity']['max_retries']):
+                    self.logger.debug('Failed to get raw data from Tzone Cloud, attempt {}/{}'
+                                      .format(self.num_attempts, self.cfg['connectivity']['max_retries']))
+                    self.num_attempts = 0
+                    raise CloudNoDataException
+                else:
+                    self.num_attempts += 1
 
     def get_device_data(self, device_id: str):
         try:
-            raw_data = self.get_raw_data()
-            if raw_data is None:
-                return None
+            raw_data = self.data[1]
             filtered_data = json_filter(
                 raw_data,
                 "SN", device_id
@@ -73,12 +67,62 @@ class TzoneHandler(AbsCloudObj):
     def data_formatter(self, device_id, field, separator):
         data = self.get_device_data(device_id)
         try:
-            return float(data[field].split[separator][0])
+            return float(data[0][field].split(separator)[0])
         except TypeError:
             return None
 
+    def update_raw_data(self):
+        start = time()
+        begin_time = tzone_date_formatter(eval(self.cfg['data']['data_refresh_time_sec']))
+        body = prepare_cloud_request(begin_time)
+        req = get_request('POST',
+                          self.cfg['connectivity']['cloud_url'],
+                          eval(self.cfg['connectivity']['request_header']),
+                          body)
+        data = tzone_cloud_data_to_json(req.data, self.cfg['data']['data_key'])
+
+        self.logger.debug(f'Cloud Data Acquisiton Time Elapsed : {time() - start} seconds')
+        self.data = (start, data)
+
+
+def prepare_cloud_request(begin_time,
+                          end_time=None,
+                          allow_paging=True,
+                          num_results=100,
+                          total_count=0,
+                          page_index=1):
+    """
+
+    :param begin_time: date string in YYYY-MM-DD HH MM SS. see date_formatter function for assistance.
+    :param end_time: same format as mentioned above. Default is now.
+    :param allow_paging: Boolean
+    :param num_results: refers to PageSize. how many results should be contained in each "page"
+    :param total_count:
+    :param page_index: how many pages should divide the result
+    :return: A dictionary of an acceptable POST request for TZone Cloud
+    """
+    if end_time is None:
+        end_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    return {
+        "BeginTime": begin_time,
+        "EndTime": end_time,
+        "AllowPaging": allow_paging,
+        "PageSize": f"{num_results}",
+        "TotalCount": total_count,
+        "PageIndex": page_index
+    }
+
+
+def tzone_date_formatter(seconds):
+    dt = datetime.datetime.now() - datetime.timedelta(seconds=seconds)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def tzone_cloud_data_to_json(json_string, data_key):
+    return json.loads(json_string)[data_key]
 
 if __name__ == '__main__':
     logger = configure_logger()
-    h = TzoneHandler(logger)
+    h = TzoneHandler(logger, )
     print(h.get_device_data("06190229"))
