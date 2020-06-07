@@ -1,4 +1,0 @@
-# Vayyar Parking Lot
-
-
-
