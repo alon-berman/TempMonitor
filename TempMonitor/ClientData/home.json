@@ -1,5 +1,4 @@
-[
-  {
+{
     "business_details": {
       "business_name": "Home",
       "contact_name": "Alon",
@@ -54,4 +53,3 @@
     ],
     "business_debug_mode": 1
   }
-]
