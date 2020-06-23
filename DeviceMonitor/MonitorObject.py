@@ -28,8 +28,7 @@ class DeviceMonitor:
             logging_level = logging.DEBUG
         else:
             logging_level = logging.WARNING
-        self.logger = configure_logger(logger_name=logger_name + '.' + device_id,
-                                       logging_level=logging_level)
+        self.logger = logging.getLogger(logger_name + device_id)
 
         # Client-configured Parameters
         self.tag = tag

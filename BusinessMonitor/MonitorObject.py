@@ -31,22 +31,22 @@ class BusinessMonitor:
         else:
             log_level = logging.WARNING
             print_logging = False
+
         self.logger = configure_logger(logger_name=business_details["business_name"],
-                                       logging_level=log_level,
-                                       log_to_file=True)
+                                       logging_level=log_level, print_logging=print_logging,
+                                       log_to_file=True, cyclic_max_bytes=1e6)
 
         self.device_processes_list = []
         self.business_debug_mode = business_debug_mode
         self.last_email_sent_seconds = time()
         self.should_send_email = False
         self.devices = devices
-
         # Client Data
         self.business_details = business_details
 
         self.prepare_run()
         self.monitor()
-        self.logger.debug('created Businsess handler for {}'.format(business_details["business_name"]))
+        self.logger.debug('created businsess handler for {}'.format(business_details["business_name"]))
 
     def prepare_run(self):
         pass
@@ -54,15 +54,18 @@ class BusinessMonitor:
     def monitor(self):
         for device in self.devices:
             if device["monitor_enabled"]:
-                process = multiprocessing.Process(name=device["device_id"],
-                                                  target=DeviceMonitor,
-                                                  args=(self.business_details["business_name"],
-                                                        self.business_details["contact_name"],
-                                                        self.business_details["contact_email"]),
-                                                  kwargs=device)
+                self.logger.debug('Entered monitor loop')
+                # todo: debug DeviceMonitor Input arguments
+                DeviceMonitor(**self.business_details, **device)
+                # process = multiprocessing.Process(name=device["device_id"],
+                #                                   target=DeviceMonitor,
+                #                                   args=(self.business_details["business_name"],
+                #                                         self.business_details["contact_name"],
+                #                                         self.business_details["contact_email"]),
+                #                                   kwargs=device)
                 self.logger.debug(f'initiating DeviceMonitor process for {device["device_id"]}')
-                process.start()
-                self.device_processes_list.append(process)
+                # process.start()
+                # self.device_processes_list.append(process)
             else:
                 self.logger.debug(f'Skipping Monitoring of {device["device_id"]}')
 
