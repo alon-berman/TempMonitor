@@ -70,7 +70,6 @@ class BusinessMonitor:
                 self.logger.debug(f'Skipping Monitoring of {device["device_id"]}')
 
 
-
 if __name__ == '__main__':
     pass
     # monitor = BusinessMonitor("eu.thethings.network", 1883, "temp_monitor_tester",

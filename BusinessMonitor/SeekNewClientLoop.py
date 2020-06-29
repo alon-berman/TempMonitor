@@ -28,7 +28,7 @@ class MainLoop:
             while True:
                 clients_as_json = mongo_handler.find({'is_monitored': False})
                 for client in clients_as_json:
-                    client_name = client["business_details"]["business_name"]
+                    client_name = client["business_details"]["contact_name"]
                     try:
                         # self.logger.debug("Appending {} To Processes List ....".format(client_name))
                         client_monitor = BusinessMonitor(client['business_details'],

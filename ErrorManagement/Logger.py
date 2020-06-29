@@ -3,7 +3,7 @@ from logging.handlers import RotatingFileHandler
 
 
 def configure_logger(
-        logging_level=logging.INFO,
+        logging_level=logging.DEBUG,
         log_to_file=True,
         print_logging=False,
         log_output_path=None,

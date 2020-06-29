@@ -13,7 +13,7 @@ class TemperatureHandler(AbsMeasurementHandler):
         temperature monitor object that ideally runs as a thread of a device object.
         it continously monitorsof
         :param handler_cfg:
-        :param get_data:
+        :param get_data: function pointer to the sensor cloud data
         :param device_id:
         :param logger:
         """
@@ -32,8 +32,9 @@ class TemperatureHandler(AbsMeasurementHandler):
     def check_measurement(self):
         self.logger.debug(f'device {self.device_id} buffer: {self.measurement_buffer} \n')
         if self.is_temp_stabilized():
-            current_temperature = self.get_data_func(self.device_id)
-            self._update_buffer(current_temperature)
+            data = self.get_data_func(self.device_id)
+
+            self._update_buffer(data['temperature_C'], data['RTC'])
             if current_temperature not in np.arange(self.threshold[0], self.threshold[1]):
                 raise TemperatureExceededError
             else:
@@ -64,12 +65,13 @@ class TemperatureHandler(AbsMeasurementHandler):
         self.logger.debug('Waiting for temp to stabilize...')
         if len(self.measurement_buffer) == _BUFF_SIZE:
             self.measurement_buffer.pop(0)
-        self.measurement_buffer.append(curr_temp)
+        if curr_temp is not None:
+            self.measurement_buffer.append(curr_temp)
 
     def _loop(self):
         while True:
             sleep(self.time_interval_sec)
-            self._update_buffer(self.get_data_func(self.device_id))
+            self._update_buffer(self.get_data_func(self.device_id,))
             try:
                 self.check_measurement()
             except TemperatureExceededError:

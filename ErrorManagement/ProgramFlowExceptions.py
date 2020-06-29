@@ -5,3 +5,7 @@ class SoupMissingException(BaseException):
 
 class Data(BaseException):
     pass
+
+
+class SameMeasurementError(BaseException):
+    pass

@@ -12,15 +12,17 @@ from MeasurementHandler.TemperatureHandler import TemperatureHandler
 
 
 class DeviceMonitor:
-    def __init__(self, logger_name: str, owner_name: str, owner_email: str, device_id: str,
-                 tag: str, cloud_config: dict, measurement_types: dict,
-                 min_battery_volt_alert: float,  time_between_alerts_sec: int, debug_mode: int,
-                 monitor_enabled=1):
+    def __init__(self, contact_name: str, business_name: str, contact_email: str, device_id: str,
+                 tag: str, cloud_config: dict, measurement_types: dict, contact_phone: str,
+                 min_battery_volt_alert: float, time_between_alerts_sec: int, debug_mode: int,
+                 monitor_enabled=1, logger_name=''):
         if not monitor_enabled:
             quit()
         # System-configured Parameters
-        self.device_owner_name = owner_name
-        self.device_owner_email = owner_email
+        self.business_name = business_name
+        self.device_owner_name = contact_name
+        self.device_owner_email = contact_email
+        self.contact_phone = contact_phone
         self.last_email_sent_seconds = -np.inf
         self.should_send_email = None
         self.device_id = device_id
@@ -53,7 +55,7 @@ class DeviceMonitor:
                 proc = threading.Thread(target=TemperatureHandler,
                                         kwargs=({
                                             "handler_cfg": self.measurement_types[meas_type],
-                                            "get_data": self.cloud_handler.get_device_temperature,
+                                            "get_data": self.cloud_handler.get_device_data(),
                                             "device_id": self.device_id,
                                             "logger": self.logger
                                         }))

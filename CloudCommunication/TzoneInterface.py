@@ -3,12 +3,15 @@ import threading
 from time import time, sleep
 import datetime
 
+from urllib3.exceptions import ProtocolError
+
 from CloudCommunication.CloudUtilities import get_request
 from CloudCommunication.Config.operation.ini import read_ini_cfg
 from CloudCommunication.AbstractCloudObject import AbsCloudObj
 from DataHandlers.DataFilter import json_filter
 from ErrorManagement.CloudExceptions import CloudNoDataException
 from ErrorManagement.Logger import configure_logger
+from ErrorManagement.ProgramFlowExceptions import SameMeasurementError
 
 
 class TzoneHandler(AbsCloudObj):
@@ -20,6 +23,9 @@ class TzoneHandler(AbsCloudObj):
         self.data = (None, None)  # (time of data acquisition, cloud data)
         self.data_update_thread = threading.Thread(target=self.get_raw_data_loop)
         self.prepare_run()
+
+    def get_latest_device_data(self):
+        pass
 
     def prepare_run(self):
         self.update_raw_data()
@@ -40,19 +46,25 @@ class TzoneHandler(AbsCloudObj):
                 else:
                     self.num_attempts += 1
 
-    def get_device_data(self, device_id: str):
+    def get_device_data(self, device_id: str, timestamp_to_compare: str):
         try:
-            raw_data = self.data[1]
-            filtered_data = json_filter(
-                raw_data,
-                "SN", device_id
-            )
-            # self.logger.debug('filtered_data : {}'.format(filtered_data.encode('UTF-8'))
-            return filtered_data
-
+            # Set time-Xs in tzone cloud format
+            begin_time = tzone_date_formatter(eval(self.cfg['data']['data_refresh_time_sec']))
+            # create cloud request
+            body = prepare_cloud_request(device_id, begin_time)
+            req = get_request('POST',
+                              self.cfg['connectivity']['cloud_url'],
+                              eval(self.cfg['connectivity']['request_header']),
+                              body)
+            data = tzone_cloud_data_to_json(req.data, self.cfg['data']['data_key'])
+            self.logger.debug('data : {}'.format(data.encode('UTF-8')))
+            if data['ResultList']['RTC'] == timestamp_to_compare:
+                raise SameMeasurementError
+            else:
+                return data['ResultList']
         except IndexError:
             self.logger.warning('Index Error raised!')
-            self.get_device_data(device_id)
+            self.get_device_data(device_id,timestamp_to_compare)
 
     def get_device_voltage(self, device_id: str):
         data = self.data_formatter(device_id, 'VBV', 'V')
@@ -78,24 +90,31 @@ class TzoneHandler(AbsCloudObj):
         start = time()
         begin_time = tzone_date_formatter(eval(self.cfg['data']['data_refresh_time_sec']))
         body = prepare_cloud_request(begin_time)
-        req = get_request('POST',
-                          self.cfg['connectivity']['cloud_url'],
-                          eval(self.cfg['connectivity']['request_header']),
-                          body)
-        data = tzone_cloud_data_to_json(req.data, self.cfg['data']['data_key'])
-
+        try:
+            req = get_request('POST',
+                              self.cfg['connectivity']['cloud_url'],
+                              eval(self.cfg['connectivity']['request_header']),
+                              body)
+            data = tzone_cloud_data_to_json(req.data, self.cfg['data']['data_key'])
+        except ProtocolError:
+            data = self.data(0)
+            self.logger.WARNING('Connection Forcibly Closed, Trying again..')
         self.logger.debug(f'Cloud Data Acquisiton Time Elapsed : {time() - start} seconds')
         self.data = (start, data)
 
 
-def prepare_cloud_request(begin_time,
+def prepare_cloud_request(device_id,
+                          begin_time,
                           end_time=None,
                           allow_paging=True,
-                          num_results=100,
+                          num_results=1,
                           total_count=0,
-                          page_index=1):
+                          page_index=1,
+                          m='GetTAG04'):
     """
 
+    :param m: Something unclear.
+    :param device_id: requested device id
     :param begin_time: date string in YYYY-MM-DD HH MM SS. see date_formatter function for assistance.
     :param end_time: same format as mentioned above. Default is now.
     :param allow_paging: Boolean
@@ -113,7 +132,9 @@ def prepare_cloud_request(begin_time,
         "AllowPaging": allow_paging,
         "PageSize": f"{num_results}",
         "TotalCount": total_count,
-        "PageIndex": page_index
+        "PageIndex": page_index,
+        "M": m,
+        "sn": device_id
     }
 
 
