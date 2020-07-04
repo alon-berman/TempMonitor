@@ -1,6 +1,8 @@
+import logging
 from time import sleep
 import numpy as np
 from ErrorManagement.LoopExceptions import TemperatureExceededError
+from ErrorManagement.ProgramFlowExceptions import SameMeasurementError
 from MeasurementHandler.AbsMeasurementHandler import AbsMeasurementHandler
 
 _BUFF_SIZE = 30
@@ -8,7 +10,7 @@ _BUFF_SIZE = 30
 
 class TemperatureHandler(AbsMeasurementHandler):
     def __init__(self, handler_cfg: dict,
-                 get_data, device_id, logger):
+                 get_data, device_id, logger_name='root'):
         """
         temperature monitor object that ideally runs as a thread of a device object.
         it continously monitorsof
@@ -18,7 +20,7 @@ class TemperatureHandler(AbsMeasurementHandler):
         :param logger:
         """
         super().__init__()
-        self.logger = logger
+        self.logger = logging.getLogger(logger_name)
         self.device_id = device_id
         self.measurement_buffer = []
         self.threshold = handler_cfg["threshold"]
@@ -31,16 +33,25 @@ class TemperatureHandler(AbsMeasurementHandler):
 
     def check_measurement(self):
         self.logger.debug(f'device {self.device_id} buffer: {self.measurement_buffer} \n')
-        if self.is_temp_stabilized():
-            data = self.get_data_func(self.device_id)
-
-            self._update_buffer(data['temperature_C'], data['RTC'])
-            if current_temperature not in np.arange(self.threshold[0], self.threshold[1]):
-                raise TemperatureExceededError
-            else:
-                self.logger.debug('Temperature within threshold')
-        else:
-            self.logger.debug('Temperature is yet to be stabilized!')
+        data = self.get_data_func(self.device_id)
+        if data:
+            self.measurement_buffer.append({'temperature': int(data['Temperature'].split('℃')[0]),
+                                            'RTC': data['RTC']})
+            if len(self.measurement_buffer) > 0 and self.measurement_buffer[-1]['RTC'] is not None:
+                if data['RTC'] == self.measurement_buffer[-2]['RTC']:
+                    raise SameMeasurementError
+                try:
+                    self._update_buffer(data['Temperature'], data['RTC'])
+                except IndexError:
+                    pass
+                if self.is_temp_stabilized():
+                    self.logger.debug('check_measurement data returned : {}'.format(data))
+                    if data['Temperature'] not in np.arange(self.threshold[0], self.threshold[1]):
+                        raise TemperatureExceededError
+                    else:
+                        self.logger.debug('Temperature within threshold')
+                else:
+                    self.logger.debug('Temperature is yet to be stabilized!')
 
     def get_latest_measurement(self):
         return self.measurement_buffer[-1]
@@ -61,18 +72,20 @@ class TemperatureHandler(AbsMeasurementHandler):
             return False
         return True
 
-    def _update_buffer(self, curr_temp):
+    def _update_buffer(self, curr_temp, time_of_measurement):
         self.logger.debug('Waiting for temp to stabilize...')
         if len(self.measurement_buffer) == _BUFF_SIZE:
             self.measurement_buffer.pop(0)
         if curr_temp is not None:
-            self.measurement_buffer.append(curr_temp)
+            self.measurement_buffer.append((curr_temp, time_of_measurement))
 
     def _loop(self):
         while True:
             sleep(self.time_interval_sec)
-            self._update_buffer(self.get_data_func(self.device_id,))
+            # self._update_buffer(self.get_data_func(self.device_id,))
             try:
                 self.check_measurement()
             except TemperatureExceededError:
                 self.logger.debug('Temperature Exceeded!')
+            except SameMeasurementError:
+                self.logger.debug('Got Same Measurement!')

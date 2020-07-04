@@ -6,7 +6,6 @@ import numpy as np
 
 from ClientCommunication.email import send_mail
 from CloudCommunication.CloudOperation import assign_cloud_object
-from ErrorManagement.Logger import configure_logger
 from ErrorManagement.LoopExceptions import CloudException, NoInternetException
 from MeasurementHandler.TemperatureHandler import TemperatureHandler
 
@@ -26,11 +25,7 @@ class DeviceMonitor:
         self.last_email_sent_seconds = -np.inf
         self.should_send_email = None
         self.device_id = device_id
-        if debug_mode:
-            logging_level = logging.DEBUG
-        else:
-            logging_level = logging.WARNING
-        self.logger = logging.getLogger(logger_name + device_id)
+        self.logger = logging.getLogger(logger_name)
 
         # Client-configured Parameters
         self.tag = tag
@@ -41,7 +36,7 @@ class DeviceMonitor:
 
         # Cloud Interface
         self.cloud_handler = assign_cloud_object(cloud_config,
-                                                 self.logger)
+                                                 self.logger.name)
 
         # Advanced
         self.debug_mode = debug_mode
@@ -55,9 +50,9 @@ class DeviceMonitor:
                 proc = threading.Thread(target=TemperatureHandler,
                                         kwargs=({
                                             "handler_cfg": self.measurement_types[meas_type],
-                                            "get_data": self.cloud_handler.get_device_data(),
+                                            "get_data": self.cloud_handler.get_device_data,
                                             "device_id": self.device_id,
-                                            "logger": self.logger
+                                            "logger_name": self.logger.name
                                         }))
                 proc.start()
                 self.measurement_handlers.append(proc)
@@ -67,7 +62,7 @@ class DeviceMonitor:
     def monitor(self):
         while True:
             try:
-                sleep(1*60)
+                sleep(10*60)
                 if self.is_battery_low():
                     self.logger.warning('DEVICE BATTERY VOLTAGE LOW! \n'
                                         'Device ID : {}'.format(self.device_id),

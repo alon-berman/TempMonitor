@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 from time import time, sleep
 import datetime
@@ -15,92 +16,100 @@ from ErrorManagement.ProgramFlowExceptions import SameMeasurementError
 
 
 class TzoneHandler(AbsCloudObj):
-    def __init__(self, business_logger, ini_config_path, **kwargs):
+    def __init__(self, logger_name, ini_config_path, **kwargs):
         super().__init__()
-        self.logger = business_logger
+        self.logger = logging.getLogger(logger_name)
         self.num_attempts = 0
         self.cfg = read_ini_cfg(ini_config_path)
-        self.data = (None, None)  # (time of data acquisition, cloud data)
-        self.data_update_thread = threading.Thread(target=self.get_raw_data_loop)
-        self.prepare_run()
+        self.last_request_time_secs = time()
+        # self.data_update_thread = threading.Thread(target=self.get_raw_data_loop)
+        # self.prepare_run()
 
     def get_latest_device_data(self):
         pass
 
-    def prepare_run(self):
-        self.update_raw_data()
-        self.data_update_thread.start()
+    # def prepare_run(self):
+    #     # self.update_raw_data()
+    #     self.data_update_thread.start()
+    #
+    # def get_raw_data_loop(self):
+    #     while True:
+    #         sleep(eval(self.cfg['data']['data_refresh_time_sec']))
+    #         try:
+    #             self.update_raw_data()
+    #
+    #         except KeyError:
+    #             if self.num_attempts > int(self.cfg['connectivity']['max_retries']):
+    #                 self.logger.debug('Failed to get raw data from Tzone Cloud, attempt {}/{}'
+    #                                   .format(self.num_attempts, self.cfg['connectivity']['max_retries']))
+    #                 self.num_attempts = 0
+    #                 raise CloudNoDataException
+    #             else:
+    #                 self.num_attempts += 1
 
-    def get_raw_data_loop(self):
-        while True:
-            sleep(eval(self.cfg['data']['data_refresh_time_sec']))
-            try:
-                self.update_raw_data()
-
-            except KeyError:
-                if self.num_attempts > int(self.cfg['connectivity']['max_retries']):
-                    self.logger.debug('Failed to get raw data from Tzone Cloud, attempt {}/{}'
-                                      .format(self.num_attempts, self.cfg['connectivity']['max_retries']))
-                    self.num_attempts = 0
-                    raise CloudNoDataException
-                else:
-                    self.num_attempts += 1
-
-    def get_device_data(self, device_id: str, timestamp_to_compare: str):
+    def get_device_data(self, device_id: str):
         try:
             # Set time-Xs in tzone cloud format
-            begin_time = tzone_date_formatter(eval(self.cfg['data']['data_refresh_time_sec']))
+            begin_time = tzone_date_formatter(self.last_request_time_secs)
             # create cloud request
             body = prepare_cloud_request(device_id, begin_time)
             req = get_request('POST',
-                              self.cfg['connectivity']['cloud_url'],
-                              eval(self.cfg['connectivity']['request_header']),
+                              'http://t-open.tzonedigital.cn/ajax/iHistory.ashx?M=GetTAG04&sn={}'.format(device_id),
+                              {'Content-Type': 'application/json'},
                               body)
-            data = tzone_cloud_data_to_json(req.data, self.cfg['data']['data_key'])
-            self.logger.debug('data : {}'.format(data.encode('UTF-8')))
-            if data['ResultList']['RTC'] == timestamp_to_compare:
-                raise SameMeasurementError
-            else:
-                return data['ResultList']
+
+            try:
+                data = tzone_cloud_data_to_json(req.data, 'ResultList')[0]  # take last measurement
+            except TypeError:
+                self.logger.debug('Request did not yield results')
+                data = None
+
+            if data:
+                self.last_request_time_secs = time()
+                self.logger.debug('data timestamp: {}'.format(data['RTC']))
+            return data
         except IndexError:
-            self.logger.warning('Index Error raised!')
-            self.get_device_data(device_id,timestamp_to_compare)
+            self.logger.debug('Index Error raised!')
+            self.get_device_data(device_id)
 
     def get_device_voltage(self, device_id: str):
-        data = self.data_formatter(device_id, 'VBV', 'V')
-        self.logger.debug('get_device_voltage: {}'.format(data))
-        return data
-
-    def get_device_temperature(self, device_id):
-        data = self.data_formatter(device_id, 'Temperature', '℃')
-        self.logger.debug('got temperature: {} \n'.format(data))
-        return data
-
-    def data_formatter(self, device_id, field, separator):
         data = self.get_device_data(device_id)
         try:
-            if data:
-                return float(data[0][field].split(separator)[0])
-            else:
-                return None
-        except TypeError:
+            self.logger.debug('get_device_voltage: {}'.format(data['VBV']))
+            return int(data['VBV'].split('V')[0])
+        except (KeyError, TypeError):
             return None
+    #
+    # def get_device_temperature(self, device_id):
+    #     data = self.data_formatter(device_id, 'Temperature', '℃')
+    #     self.logger.debug('got temperature: {} \n'.format(data))
+    #     return data
 
-    def update_raw_data(self):
-        start = time()
-        begin_time = tzone_date_formatter(eval(self.cfg['data']['data_refresh_time_sec']))
-        body = prepare_cloud_request(begin_time)
-        try:
-            req = get_request('POST',
-                              self.cfg['connectivity']['cloud_url'],
-                              eval(self.cfg['connectivity']['request_header']),
-                              body)
-            data = tzone_cloud_data_to_json(req.data, self.cfg['data']['data_key'])
-        except ProtocolError:
-            data = self.data(0)
-            self.logger.WARNING('Connection Forcibly Closed, Trying again..')
-        self.logger.debug(f'Cloud Data Acquisiton Time Elapsed : {time() - start} seconds')
-        self.data = (start, data)
+    # def data_formatter(self, device_id, field, separator):
+    #     data = self.get_device_data(device_id)
+    #     try:
+    #         if data:
+    #             return float(data[0][field].split(separator)[0])
+    #         else:
+    #             return None
+    #     except TypeError:
+    #         return None
+
+    # def update_raw_data(self, device_id):
+    #     start = time()
+    #     begin_time = tzone_date_formatter(eval(self.cfg['data']['data_refresh_time_sec']))
+    #     body = prepare_cloud_request(device_id, begin_time)
+    #     try:
+    #         req = get_request('POST',
+    #                           self.cfg['connectivity']['cloud_url'],
+    #                           eval(self.cfg['connectivity']['request_header']),
+    #                           body)
+    #         data = tzone_cloud_data_to_json(req.data, self.cfg['data']['data_key'])
+    #     except ProtocolError:
+    #         data = self.data(0)
+    #         self.logger.WARNING('Connection Forcibly Closed, Trying again..')
+    #     self.logger.debug(f'Cloud Data Acquisiton Time Elapsed : {time() - start} seconds')
+    #     self.data = (start, data)
 
 
 def prepare_cloud_request(device_id,
@@ -133,8 +142,8 @@ def prepare_cloud_request(device_id,
         "PageSize": f"{num_results}",
         "TotalCount": total_count,
         "PageIndex": page_index,
-        "M": m,
-        "sn": device_id
+        #"M": m,
+        #"sn": device_id
     }
 
 
@@ -144,9 +153,34 @@ def tzone_date_formatter(seconds):
 
 
 def tzone_cloud_data_to_json(json_string, data_key):
-    return json.loads(json_string)[data_key]
+    try:
+        return json.loads(json_string)[data_key]
+    except KeyError:
+        return None
+
+
+def mock_get_device_data(device_id: str, timestamp_to_compare: str):
+    try:
+        # Set time-Xs in tzone cloud format
+        begin_time = tzone_date_formatter(24*60*60)
+        # create cloud request
+        body = prepare_cloud_request(device_id, begin_time)
+        req = get_request('POST',
+                          'http://t-open.tzonedigital.cn/ajax/iHistory.ashx?M=GetTAG04&sn={}'.format(device_id),
+                          {'Content-Type': 'application/json'},
+                          body)
+        data = tzone_cloud_data_to_json(req.data, 'ResultList')[0]  # take last measurement
+        if data['RTC'] == timestamp_to_compare:
+            raise SameMeasurementError
+        else:
+            print(data)
+    except IndexError:
+        # self.logger.warning('Index Error raised!')
+        # self.get_device_data(device_id,timestamp_to_compare)
+        pass
+
 
 if __name__ == '__main__':
     logger = configure_logger()
-    h = TzoneHandler(logger, )
-    print(h.get_device_data("06190229"))
+    res = mock_get_device_data('72192067', '2323')
+    print(res)

@@ -56,7 +56,7 @@ class BusinessMonitor:
             if device["monitor_enabled"]:
                 self.logger.debug('Entered monitor loop')
                 # todo: debug DeviceMonitor Input arguments
-                DeviceMonitor(**self.business_details, **device)
+                DeviceMonitor(**self.business_details, **device, logger_name=self.logger.name)
                 # process = multiprocessing.Process(name=device["device_id"],
                 #                                   target=DeviceMonitor,
                 #                                   args=(self.business_details["business_name"],
