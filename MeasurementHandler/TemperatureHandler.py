@@ -35,17 +35,16 @@ class TemperatureHandler(AbsMeasurementHandler):
         self.logger.debug(f'device {self.device_id} buffer: {self.measurement_buffer} \n')
         data = self.get_data_func(self.device_id)
         if data:
-            self.measurement_buffer.append({'temperature': int(data['Temperature'].split('℃')[0]),
-                                            'RTC': data['RTC']})
-            if len(self.measurement_buffer) > 0 and self.measurement_buffer[-1]['RTC'] is not None:
-                if data['RTC'] == self.measurement_buffer[-2]['RTC']:
-                    raise SameMeasurementError
-                try:
-                    self._update_buffer(data['Temperature'], data['RTC'])
-                except IndexError:
-                    pass
+            # check if measurement was not collected already (timestamp comparison)
+            if data['RTC'] == self.measurement_buffer[-1]['RTC']:
+                raise SameMeasurementError
+            # if data is valid, append to measurement buffer.
+            self.measurement_buffer.append(data)
+            if len(self.measurement_buffer) > 1 and self.measurement_buffer[-1]['RTC'] is not None:
+                # check if temperature is stable for examination
                 if self.is_temp_stabilized():
                     self.logger.debug('check_measurement data returned : {}'.format(data))
+                    # Check temperature excision
                     if data['Temperature'] not in np.arange(self.threshold[0], self.threshold[1]):
                         raise TemperatureExceededError
                     else:
@@ -67,9 +66,11 @@ class TemperatureHandler(AbsMeasurementHandler):
         """
         if len(self.measurement_buffer) < 2:
             return False
-        if abs(self.measurement_buffer[-2] - self.measurement_buffer[-1]) > self.stabilization_threshold_c:
+        if abs(self.measurement_buffer[-2]['temperature'] - self.measurement_buffer[-1]['temperature']) >\
+                self.stabilization_threshold_c:
             self.logger.debug('Waiting for temp to stabilize...')
             return False
+        self.logger.debug('Temperature is stabilized...')
         return True
 
     def _update_buffer(self, curr_temp, time_of_measurement):
@@ -89,3 +90,4 @@ class TemperatureHandler(AbsMeasurementHandler):
                 self.logger.debug('Temperature Exceeded!')
             except SameMeasurementError:
                 self.logger.debug('Got Same Measurement!')
+

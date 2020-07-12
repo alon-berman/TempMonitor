@@ -42,7 +42,7 @@ class DeviceMonitor:
         self.debug_mode = debug_mode
         self.logger.debug('created device handler for device {}'.format(device_id))
         self.prepare_run()
-        self.monitor()
+        self.monitor_battery()
 
     def prepare_run(self):
         for meas_type in self.measurement_types:
@@ -59,7 +59,7 @@ class DeviceMonitor:
             if meas_type == 'humidity':
                 pass
 
-    def monitor(self):
+    def monitor_battery(self):
         while True:
             try:
                 sleep(10*60)
@@ -90,7 +90,7 @@ class DeviceMonitor:
             return
 
     def get_current_battery_voltage(self):
-        return self.cloud_handler.get_device_voltage(self.device_id)
+        return self.cloud_handler.get_device_current_voltage()
 
     def should_send_mail(self):
         if time() - self.last_email_sent_seconds < self.time_between_alerts_sec:

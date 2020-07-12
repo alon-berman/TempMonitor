@@ -21,7 +21,8 @@ class TzoneHandler(AbsCloudObj):
         self.logger = logging.getLogger(logger_name)
         self.num_attempts = 0
         self.cfg = read_ini_cfg(ini_config_path)
-        self.last_request_time_secs = time()
+        self.last_request_time_secs = tzone_date_formatter_now()
+        self.last_measurement = None
         # self.data_update_thread = threading.Thread(target=self.get_raw_data_loop)
         # self.prepare_run()
 
@@ -49,10 +50,9 @@ class TzoneHandler(AbsCloudObj):
 
     def get_device_data(self, device_id: str):
         try:
-            # Set time-Xs in tzone cloud format
-            begin_time = tzone_date_formatter(self.last_request_time_secs)
             # create cloud request
-            body = prepare_cloud_request(device_id, begin_time)
+            body = prepare_cloud_request(device_id, begin_time=self.last_request_time_secs)
+            print('BeginTime: {}\n EndTime: {}'.format(body['BeginTime'], body['EndTime']))
             req = get_request('POST',
                               'http://t-open.tzonedigital.cn/ajax/iHistory.ashx?M=GetTAG04&sn={}'.format(device_id),
                               {'Content-Type': 'application/json'},
@@ -65,51 +65,30 @@ class TzoneHandler(AbsCloudObj):
                 data = None
 
             if data:
-                self.last_request_time_secs = time()
+                self.last_request_time_secs = tzone_date_formatter_now()
+                self.last_measurement = data
                 self.logger.debug('data timestamp: {}'.format(data['RTC']))
-            return data
-        except IndexError:
-            self.logger.debug('Index Error raised!')
-            self.get_device_data(device_id)
 
-    def get_device_voltage(self, device_id: str):
-        data = self.get_device_data(device_id)
+                # parse data and extract relevant fields
+                data = {'temperature': float(data['Temperature'].split('℃')[0]),
+                        'RTC': data['RTC'],
+                        'humidity': data['Humidity'],
+                        'VBV': float(data['VBV'].split('V')[0])}
+            return data
+
+        except IndexError:
+            # error is raised when no valid data was received from the cloud
+            self.logger.debug('Index Error raised!')
+
+    def get_device_current_voltage(self):
         try:
-            self.logger.debug('get_device_voltage: {}'.format(data['VBV']))
-            return int(data['VBV'].split('V')[0])
+            self.logger.debug('get_device_voltage: {}'.format(self.last_measurement['VBV']))
+            return float(self.last_measurement['VBV'].split('V')[0])
         except (KeyError, TypeError):
             return None
-    #
-    # def get_device_temperature(self, device_id):
-    #     data = self.data_formatter(device_id, 'Temperature', '℃')
-    #     self.logger.debug('got temperature: {} \n'.format(data))
-    #     return data
 
-    # def data_formatter(self, device_id, field, separator):
-    #     data = self.get_device_data(device_id)
-    #     try:
-    #         if data:
-    #             return float(data[0][field].split(separator)[0])
-    #         else:
-    #             return None
-    #     except TypeError:
-    #         return None
-
-    # def update_raw_data(self, device_id):
-    #     start = time()
-    #     begin_time = tzone_date_formatter(eval(self.cfg['data']['data_refresh_time_sec']))
-    #     body = prepare_cloud_request(device_id, begin_time)
-    #     try:
-    #         req = get_request('POST',
-    #                           self.cfg['connectivity']['cloud_url'],
-    #                           eval(self.cfg['connectivity']['request_header']),
-    #                           body)
-    #         data = tzone_cloud_data_to_json(req.data, self.cfg['data']['data_key'])
-    #     except ProtocolError:
-    #         data = self.data(0)
-    #         self.logger.WARNING('Connection Forcibly Closed, Trying again..')
-    #     self.logger.debug(f'Cloud Data Acquisiton Time Elapsed : {time() - start} seconds')
-    #     self.data = (start, data)
+    def get_latest_measurement(self):
+        return self.last_measurement
 
 
 def prepare_cloud_request(device_id,
@@ -133,7 +112,7 @@ def prepare_cloud_request(device_id,
     :return: A dictionary of an acceptable POST request for TZone Cloud
     """
     if end_time is None:
-        end_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        end_time = tzone_date_formatter_now()
 
     return {
         "BeginTime": begin_time,
@@ -147,9 +126,8 @@ def prepare_cloud_request(device_id,
     }
 
 
-def tzone_date_formatter(seconds):
-    dt = datetime.datetime.now() - datetime.timedelta(seconds=seconds)
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
+def tzone_date_formatter_now():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def tzone_cloud_data_to_json(json_string, data_key):
@@ -162,7 +140,8 @@ def tzone_cloud_data_to_json(json_string, data_key):
 def mock_get_device_data(device_id: str, timestamp_to_compare: str):
     try:
         # Set time-Xs in tzone cloud format
-        begin_time = tzone_date_formatter(24*60*60)
+        begin_time = datetime.datetime.now() - datetime.timedelta(hours=1)
+        begin_time.strftime("%Y-%m-%d %H:%M:%S")
         # create cloud request
         body = prepare_cloud_request(device_id, begin_time)
         req = get_request('POST',
