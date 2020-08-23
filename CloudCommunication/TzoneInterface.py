@@ -49,6 +49,7 @@ class TzoneHandler(AbsCloudObj):
     #                 self.num_attempts += 1
 
     def get_device_data(self, device_id: str):
+        data = None
         try:
             # create cloud request
             body = prepare_cloud_request(device_id, begin_time=self.last_request_time_secs)
@@ -58,12 +59,7 @@ class TzoneHandler(AbsCloudObj):
                               {'Content-Type': 'application/json'},
                               body)
 
-            try:
-                data = tzone_cloud_data_to_json(req.data, 'ResultList')[0]  # take last measurement
-            except TypeError:
-                self.logger.debug('Request did not yield results')
-                data = None
-
+            data = tzone_cloud_data_to_json(req.data, 'ResultList')[0]  # take last measurement
             if data:
                 self.last_request_time_secs = tzone_date_formatter_now()
                 self.last_measurement = data
@@ -74,11 +70,18 @@ class TzoneHandler(AbsCloudObj):
                         'RTC': data['RTC'],
                         'humidity': data['Humidity'],
                         'VBV': float(data['VBV'].split('V')[0])}
-            return data
 
         except IndexError:
             # error is raised when no valid data was received from the cloud
             self.logger.debug('Index Error raised!')
+
+        except TypeError:
+            self.logger.debug('Request did not yield results')
+
+        except ProtocolError:
+            self.logger.debug('ProtocolError raised')
+
+        return data
 
     def get_device_current_voltage(self):
         try:
