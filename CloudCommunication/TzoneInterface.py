@@ -53,7 +53,7 @@ class TzoneHandler(AbsCloudObj):
         try:
             # create cloud request
             body = prepare_cloud_request(device_id, begin_time=self.last_request_time_secs)
-            print('BeginTime: {}\n EndTime: {}'.format(body['BeginTime'], body['EndTime']))
+            self.logger.debug('BeginTime: {}\n EndTime: {}'.format(body['BeginTime'], body['EndTime']))
             req = get_request('POST',
                               'http://t-open.tzonedigital.cn/ajax/iHistory.ashx?M=GetTAG04&sn={}'.format(device_id),
                               {'Content-Type': 'application/json'},
@@ -66,14 +66,14 @@ class TzoneHandler(AbsCloudObj):
                 self.logger.debug('data timestamp: {}'.format(data['RTC']))
 
                 # parse data and extract relevant fields
-                data = {'temperature': float(data['Temperature'].split('℃')[0]),
-                        'RTC': data['RTC'],
-                        'humidity': data['Humidity'],
-                        'VBV': float(data['VBV'].split('V')[0])}
+                data = {"temperature": float(data["Temperature"].split("℃")[0]),
+                        "RTC": data["RTC"],
+                        "humidity": data["Humidity"],
+                        "VBV": float(data["VBV"].split("V")[0])}
 
         except IndexError:
             # error is raised when no valid data was received from the cloud
-            self.logger.debug('Index Error raised!')
+            self.logger.debug('No New Data Received!')
 
         except TypeError:
             self.logger.debug('Request did not yield results')

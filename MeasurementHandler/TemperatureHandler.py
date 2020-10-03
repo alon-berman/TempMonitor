@@ -5,7 +5,7 @@ from ErrorManagement.LoopExceptions import TemperatureExceededError
 from ErrorManagement.ProgramFlowExceptions import SameMeasurementError
 from MeasurementHandler.AbsMeasurementHandler import AbsMeasurementHandler
 
-_BUFF_SIZE = 30
+_BUFF_SIZE = 5
 
 
 class TemperatureHandler(AbsMeasurementHandler):
@@ -13,11 +13,11 @@ class TemperatureHandler(AbsMeasurementHandler):
                  get_data, device_id, logger_name='root'):
         """
         temperature monitor object that ideally runs as a thread of a device object.
-        it continously monitorsof
+        it constantly monitors the cloud for new queries of the device_id
         :param handler_cfg:
         :param get_data: function pointer to the sensor cloud data
         :param device_id:
-        :param logger:
+        :param logger_name:
         """
         super().__init__()
         self.logger = logging.getLogger(logger_name)
@@ -36,7 +36,7 @@ class TemperatureHandler(AbsMeasurementHandler):
         data = self.get_data_func(self.device_id)
         if data:
             # check if measurement was not collected already (timestamp comparison)
-            if len(self.measurement_buffer) > 1:
+            if len(self.measurement_buffer) > 0:
                 if data['RTC'] == self.measurement_buffer[-1]['RTC']:
                     raise SameMeasurementError
             # if data is valid, append to measurement buffer.
@@ -78,8 +78,6 @@ class TemperatureHandler(AbsMeasurementHandler):
 
     def _update_buffer(self, curr_temp, time_of_measurement):
         self.logger.debug('Waiting for temp to stabilize...')
-        if len(self.measurement_buffer) == _BUFF_SIZE:
-            self.measurement_buffer.pop(0)
         if curr_temp is not None:
             self.measurement_buffer.append((curr_temp, time_of_measurement))
 
@@ -87,6 +85,8 @@ class TemperatureHandler(AbsMeasurementHandler):
         while True:
             sleep(self.time_interval_sec)
             try:
+                if len(self.measurement_buffer) == _BUFF_SIZE:
+                    self.measurement_buffer.pop(0)
                 self.check_measurement()
             except TemperatureExceededError:
                 self.logger.debug('Temperature Exceeded!')
